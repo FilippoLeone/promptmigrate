@@ -3,6 +3,7 @@
 import importlib
 import subprocess
 import sys
+import pytest
 
 
 def test_import_package():
