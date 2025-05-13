@@ -1281,7 +1281,7 @@
 <span class="sd">    Process dynamic values in a prompt string.</span>
 
 <span class="sd">    This method finds and processes all dynamic value placeholders in the format</span>
-<span class="sd">    {{type:options}} and replaces them with their computed values.</span>
+<span class="sd">    {% raw %}{{type:options}}{% endraw %} and replaces them with their computed values.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 </code></pre></div>
 <h4 id="process_date_placeholder">process_date_placeholder<a class="headerlink" href="#process_date_placeholder" title="Permanent link">&para;</a></h4>
@@ -1289,7 +1289,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Process a date placeholder with format option.</span>
 
-<span class="sd">    Format: {{date:format=%Y-%m-%d}}</span>
+<span class="sd">    Format: {% raw %}{{date:format=%Y-%m-%d}}{% endraw %}</span>
 <span class="sd">    Returns the current date/time formatted according to the format string.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 </code></pre></div>
@@ -1298,7 +1298,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Process a number placeholder with min/max options.</span>
 
-<span class="sd">    Format: {{number:min=1,max=100}}</span>
+<span class="sd">    Format: {% raw %}{{number:min=1,max=100}}{% endraw %}</span>
 <span class="sd">    Returns a random integer between min and max (inclusive).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 </code></pre></div>
@@ -1307,7 +1307,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Process a choice placeholder with comma-separated options.</span>
 
-<span class="sd">    Format: {{choice:option1,option2,option3}}</span>
+<span class="sd">    Format: {% raw %}{{choice:option1,option2,option3}}{% endraw %}</span>
 <span class="sd">    Returns a randomly selected option from the list.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 </code></pre></div>
@@ -1316,7 +1316,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Process a text placeholder with a template and variables.</span>
 
-<span class="sd">    Format: {{text:template_string,var1=value1,var2=value2}}</span>
+<span class="sd">    Format: {% raw %}{{text:template_string,var1=value1,var2=value2}}{% endraw %}</span>
 <span class="sd">    Returns the template with variables substituted.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 </code></pre></div>
@@ -1422,45 +1422,45 @@ promptmigrate<span class="w"> </span>upgrade<span class="w"> </span>--to<span cl
 <p>PromptMigrate supports dynamic value placeholders that can be used in your prompts. These placeholders are processed at runtime when accessing prompts.</p>
 <h3 id="format">Format<a class="headerlink" href="#format" title="Permanent link">&para;</a></h3>
 <p>Dynamic values use the following format:</p>
-<div class="highlight"><pre><span></span><code>{{type:options}}
+<div class="highlight"><pre><span></span><code>{% raw %}{{type:options}}{% endraw %}
 </code></pre></div>
 <p>Where:
 - <code>type</code>: The type of dynamic content (date, number, choice, text)
 - <code>options</code>: Configuration for the dynamic content, specific to each type</p>
 <h3 id="available-types">Available Types<a class="headerlink" href="#available-types" title="Permanent link">&para;</a></h3>
 <h4 id="date">Date<a class="headerlink" href="#date" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code>{{date:format=%Y-%m-%d}}
+<div class="highlight"><pre><span></span><code>{% raw %}{{date:format=%Y-%m-%d}}{% endraw %}
 </code></pre></div>
 <p>Options:
 - <code>format</code>: A strftime format string (default: "%Y-%m-%d")</p>
 <p>Example:
-<div class="highlight"><pre><span></span><code>Today is {{date:format=%B %d, %Y}}.
+<div class="highlight"><pre><span></span><code>{% raw %}Today is {{date:format=%B %d, %Y}}.{% endraw %}
 </code></pre></div></p>
 <h4 id="number">Number<a class="headerlink" href="#number" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code>{{number:min=1,max=100}}
+<div class="highlight"><pre><span></span><code>{% raw %}{{number:min=1,max=100}}{% endraw %}
 </code></pre></div>
 <p>Options:
 - <code>min</code>: Minimum value (default: 0)
 - <code>max</code>: Maximum value (default: 100)</p>
 <p>Example:
-<div class="highlight"><pre><span></span><code>Your lucky number today is {{number:min=1,max=10}}.
+<div class="highlight"><pre><span></span><code>{% raw %}Your lucky number today is {{number:min=1,max=10}}.{% endraw %}
 </code></pre></div></p>
 <h4 id="choice">Choice<a class="headerlink" href="#choice" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code>{{choice:option1,option2,option3}}
+<div class="highlight"><pre><span></span><code>{% raw %}{{choice:option1,option2,option3}}{% endraw %}
 </code></pre></div>
 <p>Options:
 - A comma-separated list of options to choose from</p>
 <p>Example:
-<div class="highlight"><pre><span></span><code>I suggest trying {{choice:yoga,meditation,running}} today.
+<div class="highlight"><pre><span></span><code>{% raw %}I suggest trying {{choice:yoga,meditation,running}} today.{% endraw %}
 </code></pre></div></p>
 <h4 id="text">Text<a class="headerlink" href="#text" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code>{{text:Hello {name}!,name=World}}
+<div class="highlight"><pre><span></span><code>{% raw %}{{text:Hello {name}!,name=World}}{% endraw %}
 </code></pre></div>
 <p>Options:
 - First part is the template with {variables}
 - Remaining parts are variable assignments in format key=value</p>
 <p>Example:
-<div class="highlight"><pre><span></span><code>{{text:Welcome to {city}, {name}!,city=New York,name=traveler}}
+<div class="highlight"><pre><span></span><code>{% raw %}{{text:Welcome to {city}, {name}!,city=New York,name=traveler}}{% endraw %}
 </code></pre></div></p>
 
 
