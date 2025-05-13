@@ -1,0 +1,98 @@
+# This pyproject.toml uses the PEP 621 metadata table and setuptools as the build‑back‑end.  
+# It exposes a CLI entry‑point called ``promptmigrate`` and declares optional test
+# extras so that users can ``pip install promptmigrate[test]`` to run the suite.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "promptmigrate"
+version = "0.3.0"
+description = "Schema‑like migration manager for LLM prompt collections"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+  {name = "PromptMigrate Team", email = "opensource@example.com"},
+]
+requires-python = ">=3.9"
+dependencies = [
+  "click>=8.1",
+  "pyyaml>=6.0",
+]
+keywords = ["prompt‑engineering", "llm", "migration", "revision", "cli", "prompt-management"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8",
+  "coverage[toml]>=7",
+  "pytest-cov>=4.1",
+]
+dev = [
+  "black>=23.0",
+  "isort>=5.12",
+  "flake8>=6.0",
+  "build>=0.10",
+  "twine>=4.0",
+]
+docs = [
+  "mkdocs>=1.5",
+  "mkdocs-material>=9.5",
+  "mkdocstrings[python]>=0.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/promptmigrate/promptmigrate"
+Documentation = "https://promptmigrate.github.io/promptmigrate"
+Issues = "https://github.com/promptmigrate/promptmigrate/issues"
+Changelog = "https://github.com/promptmigrate/promptmigrate/blob/main/CHANGELOG.md"
+
+[project.scripts]
+promptmigrate = "promptmigrate.cli:cli"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.coverage.run]
+source = ["promptmigrate"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100

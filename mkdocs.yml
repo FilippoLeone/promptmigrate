@@ -1,0 +1,71 @@
+site_name: PromptMigrate
+site_description: Schema-like migration manager for LLM prompt collections
+site_author: PromptMigrate Team
+
+repo_name: FilippoLeone/promptmigrate
+repo_url: https://github.com/FilippoLeone/promptmigrate
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: indigo
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - navigation.indexes
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed
+  - pymdownx.critic
+  - admonition
+  - footnotes
+  - toc:
+      permalink: true
+      
+nav:
+  - Home: index.md
+  - Getting Started: usage.md
+  - API Reference: api.md
+  - Working with Migrations: migrations.md
+  - Dynamic Values: dynamic_values.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          selection:
+            docstring_style: google
+          rendering:
+            show_source: true
+
+nav:
+  - Home: index.md
+  - Getting Started: usage.md
+  - API Reference: api.md
+  - Working with Migrations: migrations.md
+  - Dynamic Values: dynamic_values.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          selection:
+            docstring_style: google
+          rendering:
+            show_source: true
+            show_root_heading: true

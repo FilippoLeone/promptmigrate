@@ -1,0 +1,36 @@
+# Normalize line endings to LF
+* text=auto eol=lf
+
+# Mark binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Python specific
+*.py text diff=python
+*.pyw text diff=python
+*.pyx text diff=python
+*.pxd text diff=python
+
+# Documentation
+*.md text
+*.rst text
+*.txt text
+LICENSE text
+
+# YAML files
+*.yaml text
+*.yml text
+
+# JSON files
+*.json text
+
+# Exclude from GitHub linguist
+docs/* linguist-documentation=true
+examples/* linguist-documentation=true
