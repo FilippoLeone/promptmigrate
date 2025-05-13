@@ -1,6 +1,7 @@
 site_name: PromptMigrate
 site_description: Schema-like migration manager for LLM prompt collections
 site_author: PromptMigrate Team
+site_url: https://filippoleone.github.io/promptmigrate/
 
 repo_name: FilippoLeone/promptmigrate
 repo_url: https://github.com/FilippoLeone/promptmigrate

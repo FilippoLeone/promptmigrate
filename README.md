@@ -5,7 +5,7 @@ Schema-like migration manager for LLM prompt collections.
 [![PyPI version](https://img.shields.io/pypi/v/promptmigrate.svg)](https://pypi.org/project/promptmigrate/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/promptmigrate.svg)](https://pypi.org/project/promptmigrate/)
 [![Test](https://github.com/promptmigrate/promptmigrate/actions/workflows/python-ci.yml/badge.svg)](https://github.com/promptmigrate/promptmigrate/actions/workflows/python-ci.yml)
-[![Documentation Status](https://img.shields.io/badge/docs-latest-blue.svg)](https://promptmigrate.github.io/promptmigrate)
+[![Documentation Status](https://img.shields.io/badge/docs-latest-blue.svg)](https://filippoleone.github.io/promptmigrate/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
@@ -103,16 +103,16 @@ PromptMigrate supports dynamic value placeholders that get processed at runtime:
 def migrate(prompts):
     # Current date with custom format
     prompts["DATE_GREETING"] = "Today is {{date:format=%B %d, %Y}}."
-    
+
     # Random number between 1-10
     prompts["LUCKY_NUMBER"] = "Your lucky number is {{number:min=1,max=10}}."
-    
+
     # Random choice from options
     prompts["SUGGESTION"] = "Try {{choice:yoga,meditation,running}} today."
-    
+
     # Text template with variables
     prompts["WELCOME"] = "{{text:Hello {name}!,name=friend}}"
-    
+
     return prompts
 ```
 
@@ -228,7 +228,7 @@ PromptMigrate v0.3.0 is production-ready and includes all the features needed fo
 1. Install the package: `pip install promptmigrate`
 2. Initialize the project: `promptmigrate init`
 3. Create your migrations following best practices in the documentation
-4. Apply migrations with `promptmigrate upgrade` 
+4. Apply migrations with `promptmigrate upgrade`
 5. Use the prompts in your application code
 6. Track prompt versions alongside your application code in source control
 
@@ -290,12 +290,12 @@ Contributions are welcome! Please see our [Contributing Guide](./CONTRIBUTING.md
 
 ## Documentation
 
-For more details, check out our [comprehensive documentation](https://promptmigrate.github.io/promptmigrate):
+For more details, check out our [comprehensive documentation](https://filippoleone.github.io/promptmigrate/):
 
-- [Getting Started Guide](https://promptmigrate.github.io/promptmigrate/usage)
-- [API Reference](https://promptmigrate.github.io/promptmigrate/api)
-- [Working with Migrations](https://promptmigrate.github.io/promptmigrate/migrations)
-- [Dynamic Values](https://promptmigrate.github.io/promptmigrate/dynamic_values)
+- [Getting Started Guide](https://filippoleone.github.io/promptmigrate/usage)
+- [API Reference](https://filippoleone.github.io/promptmigrate/api)
+- [Working with Migrations](https://filippoleone.github.io/promptmigrate/migrations)
+- [Dynamic Values](https://filippoleone.github.io/promptmigrate/dynamic_values)
 
 ## License
 

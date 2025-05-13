@@ -57,7 +57,7 @@ docs = [
 
 [project.urls]
 Homepage = "https://github.com/promptmigrate/promptmigrate"
-Documentation = "https://promptmigrate.github.io/promptmigrate"
+Documentation = "https://filippoleone.github.io/promptmigrate/"
 Issues = "https://github.com/promptmigrate/promptmigrate/issues"
 Changelog = "https://github.com/promptmigrate/promptmigrate/blob/main/CHANGELOG.md"
 
