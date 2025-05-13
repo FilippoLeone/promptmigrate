@@ -4,7 +4,7 @@ Schema-like migration manager for LLM prompt collections.
 
 [![PyPI version](https://img.shields.io/pypi/v/promptmigrate.svg)](https://pypi.org/project/promptmigrate/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/promptmigrate.svg)](https://pypi.org/project/promptmigrate/)
-[![Test](https://github.com/promptmigrate/promptmigrate/actions/workflows/python-ci.yml/badge.svg)](https://github.com/promptmigrate/promptmigrate/actions/workflows/python-ci.yml)
+[![Test](https://github.com/FilippoLeone/promptmigrate/actions/workflows/python-ci.yml/badge.svg)](https://github.com/FilippoLeone/promptmigrate/actions/workflows/python-ci.yml)
 [![Documentation Status](https://img.shields.io/badge/docs-latest-blue.svg)](https://filippoleone.github.io/promptmigrate/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
