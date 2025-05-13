@@ -55,13 +55,18 @@ class _RevisionModuleProto(Protocol):
 # Registry helpers
 _migrations: list[PromptMigration] = []
 
+
 def prompt_revision(
     rev_id: str,
     description: str = "",
-) -> Callable[[Callable[[dict[str, str]], dict[str, str]]], Callable[[dict[str, str]], dict[str, str]]]:
+) -> Callable[
+    [Callable[[dict[str, str]], dict[str, str]]], Callable[[dict[str, str]], dict[str, str]]
+]:
     """Decorator registering *func* as a prompt‑migration."""
 
-    def decorator(func: Callable[[dict[str, str]], dict[str, str]]) -> Callable[[dict[str, str]], dict[str, str]]:
+    def decorator(
+        func: Callable[[dict[str, str]], dict[str, str]],
+    ) -> Callable[[dict[str, str]], dict[str, str]]:
         migration = PromptMigration(rev_id, description, datetime.now(timezone.utc), func)
         setattr(func, REVISION_ATTR, migration)
         _migrations.append(migration)
@@ -109,7 +114,7 @@ class PromptManager:
         """Reload *prompts.yaml* into the attribute cache and return *self*."""
         self._cache = self._read_prompts()
         return self
-        
+
     # Dictionary‑style access
     def __getitem__(self, key: str) -> str:
         self._ensure_loaded()
@@ -162,10 +167,10 @@ class PromptManager:
             logger.info("Applied prompt revision %s – %s", mig.rev_id, mig.description)
         # refresh cache
         self.reload()
-        
+
     def list_migrations(self) -> list[PromptMigration]:
         return sorted(_migrations, key=lambda m: m.rev_id)
-        
+
     # ‑‑‑ Internal helpers ‑‑‑
     def _pending(self, current: str | None, target: str | None) -> list[PromptMigration]:
         ordered = self.list_migrations()
@@ -174,14 +179,14 @@ class PromptManager:
         if target:
             ordered = [m for m in ordered if m.rev_id <= target]
         return ordered
-        
+
     def _process_dynamic_values(self, text: str) -> str:
         """Process dynamic value placeholders in the prompt text.
-        
+
         Placeholders use the format {{type:options}} where:
         - type: The type of dynamic content (date, number, choice, etc.)
         - options: Configuration for the dynamic content
-        
+
         Examples:
             - {{date:format=%Y-%m-%d}} - Current date in specified format
             - {{number:min=1,max=100}} - Random number between min and max
@@ -190,15 +195,15 @@ class PromptManager:
         """
         if not text or "{{" not in text:
             return text
-            
+
         def _replace_match(match: re.Match) -> str:
             directive = match.group(1).strip()
-            
+
             if ":" not in directive:
                 return match.group(0)  # Return unchanged if no format specifier
-                
+
             value_type, options = directive.split(":", 1)
-            
+
             # Handle different dynamic value types
             if value_type == "date":
                 return self._process_date(options)
@@ -208,29 +213,29 @@ class PromptManager:
                 return self._process_choice(options)
             elif value_type == "text":
                 return self._process_text(options)
-            
+
             # Unknown type, return unchanged
             return match.group(0)
-            
+
         return re.sub(DYNAMIC_VALUE_PATTERN, _replace_match, text)
-    
+
     def _process_date(self, options: str) -> str:
         """Process date dynamic values with optional format."""
         format_str = "%Y-%m-%d"
-        
+
         # Extract format if specified
         if "format=" in options:
             format_match = re.search(r"format=([^,]+)", options)
             if format_match:
                 format_str = format_match.group(1)
-                
+
         return datetime.now().strftime(format_str)
-    
+
     def _process_number(self, options: str) -> str:
         """Process number dynamic values with optional min/max."""
         min_val = 0
         max_val = 100
-        
+
         # Extract min if specified
         if "min=" in options:
             min_match = re.search(r"min=([^,]+)", options)
@@ -239,7 +244,7 @@ class PromptManager:
                     min_val = int(min_match.group(1))
                 except ValueError:
                     pass
-        
+
         # Extract max if specified
         if "max=" in options:
             max_match = re.search(r"max=([^,]+)", options)
@@ -248,27 +253,27 @@ class PromptManager:
                     max_val = int(max_match.group(1))
                 except ValueError:
                     pass
-                    
+
         return str(random.randint(min_val, max_val))
-    
+
     def _process_choice(self, options: str) -> str:
         """Process choice dynamic values by selecting from a list."""
         choices = options.split(",")
         return random.choice(choices).strip() if choices else ""
-    
+
     def _process_text(self, options: str) -> str:
         """Process text with variables for template formatting."""
         # First part is the template, rest are variable assignments
         parts = options.split(",")
         template = parts[0]
-        
+
         # Extract variables
         variables = {}
         for part in parts[1:]:
             if "=" in part:
                 key, value = part.split("=", 1)
                 variables[key.strip()] = value.strip()
-                
+
         # Format the template with variables
         try:
             return template.format(**variables)
@@ -279,6 +284,7 @@ class PromptManager:
 
 # ---------------------
 # Convenience API for dynamic module discovery
+
 
 def load_revision_module(module: str | ModuleType) -> _RevisionModuleProto:
     import importlib

@@ -3,6 +3,7 @@
 import importlib
 import subprocess
 import sys
+
 import pytest
 
 
@@ -10,6 +11,7 @@ def test_import_package():
     """Test that the package can be imported."""
     try:
         import promptmigrate
+
         assert promptmigrate.__version__ is not None
     except ImportError:
         pytest.fail("Failed to import promptmigrate")
@@ -29,10 +31,7 @@ def test_cli_availability():
     """Test that the CLI command is available."""
     try:
         result = subprocess.run(
-            ["promptmigrate", "--help"],
-            capture_output=True,
-            text=True,
-            check=False
+            ["promptmigrate", "--help"], capture_output=True, text=True, check=False
         )
         assert result.returncode == 0
         assert "Prompt schema migrations for LLM applications" in result.stdout

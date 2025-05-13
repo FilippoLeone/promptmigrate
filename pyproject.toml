@@ -1,4 +1,4 @@
-# This pyproject.toml uses the PEP 621 metadata table and setuptools as the build‑back‑end.  
+# This pyproject.toml uses the PEP 621 metadata table and setuptools as the build‑back‑end.
 # It exposes a CLI entry‑point called ``promptmigrate`` and declares optional test
 # extras so that users can ``pip install promptmigrate[test]`` to run the suite.
 
@@ -96,3 +96,7 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 line_length = 100
+
+[tool.hatch.build.hooks.custom]
+[tool.hatch.build.hooks.custom.commands]
+format = "black src tests"

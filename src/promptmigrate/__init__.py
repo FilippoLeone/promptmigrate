@@ -8,7 +8,11 @@ can reference prompts via **attribute access**, e.g. ``promptmanager.GREETING``.
 from importlib import metadata as _metadata
 from logging import getLogger
 
-from .manager import PromptManager, prompt_revision, PromptMigration  # noqa: E402  pylint: disable=wrong‑import‑position
+from .manager import (  # noqa: E402  pylint: disable=wrong‑import‑position
+    PromptManager,
+    PromptMigration,
+    prompt_revision,
+)
 
 __all__ = [
     "PromptMigration",

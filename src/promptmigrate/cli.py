@@ -14,6 +14,7 @@ from .manager import PromptManager, load_revision_module
 
 _pkg_name = "promptmigrate_revisions"
 
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, prog_name="promptmigrate")
 def cli() -> None:
@@ -58,16 +59,16 @@ def list_cmd() -> None:
     mgr = PromptManager()
     migrations = mgr.list_migrations()
     current = mgr.current_rev()
-    
+
     if not migrations:
         click.echo("No migrations found.")
         return
-    
+
     click.echo("Available migrations:")
     for migration in migrations:
         if current and migration.rev_id <= current:
             status = "[applied]"
         else:
             status = "[pending]"
-        
+
         click.echo(f"{migration.rev_id}: {migration.description} {status}")

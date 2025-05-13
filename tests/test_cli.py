@@ -29,7 +29,7 @@ def test_init_command(runner, tmp_path):
         result = runner.invoke(cli, ["init"])
         assert result.exit_code == 0
         assert "Created revisions package" in result.output
-        
+
         # Check the package was created
         assert os.path.exists(os.path.join(td, "promptmigrate_revisions"))
         assert os.path.exists(os.path.join(td, "promptmigrate_revisions", "__init__.py"))
