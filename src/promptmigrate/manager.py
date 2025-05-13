@@ -232,9 +232,10 @@ class PromptManager:
     def __getitem__(self, key: str) -> str:
         self._ensure_loaded()
         assert self._cache is not None  # noqa: S101 – for mypy
-        return self._process_dynamic_values(self._cache[key])
+        return self._process_dynamic_values(
+            self._cache[key]
+        )  # Attribute‑style access (case‑insensitive)
 
-    # Attribute‑style access (case‑insensitive)
     def __getattr__(self, name: str) -> str:  # noqa: D401
         if name.startswith("__"):
             raise AttributeError(name)
@@ -249,7 +250,8 @@ class PromptManager:
                 return self._process_dynamic_values(v)
         raise AttributeError(f"Prompt {name!r} not found in prompts.yaml")
 
-        # Legacy public helpers kept for backwards‑compat    def load_prompts(self) -> dict[str, str]:  # deprecated in docs, kept for API
+    # Legacy public helpers kept for backwards‑compat
+    def load_prompts(self) -> dict[str, str]:  # deprecated in docs, kept for API
         self.reload()
         assert self._cache is not None
         return self._cache.copy()
