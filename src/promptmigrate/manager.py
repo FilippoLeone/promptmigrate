@@ -29,7 +29,7 @@ DYNAMIC_VALUE_PATTERN = r"\{\{(.*?)\}\}"
 
 
 # ---------------------
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=True)  # slots=True is only available in Python 3.10+
 class PromptMigration:
     """Metadata describing a single migration step."""
 
