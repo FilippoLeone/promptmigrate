@@ -30,25 +30,6 @@ markdown_extensions:
   - footnotes
   - toc:
       permalink: true
-      
-nav:
-  - Home: index.md
-  - Getting Started: usage.md
-  - API Reference: api.md
-  - Working with Migrations: migrations.md
-  - Dynamic Values: dynamic_values.md
-  - Contributing: contributing.md
-  - Changelog: changelog.md
-
-plugins:
-  - search
-  - mkdocstrings:
-      handlers:
-        python:
-          selection:
-            docstring_style: google
-          rendering:
-            show_source: true
 
 nav:
   - Home: index.md
@@ -64,8 +45,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          selection:
+          options:
             docstring_style: google
-          rendering:
             show_source: true
             show_root_heading: true
