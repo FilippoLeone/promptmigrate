@@ -1,3 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://filippoleone.github.io/promptmigrate/</loc>
+         <lastmod>2025-05-13</lastmod>
+    </url>
+    <url>
+         <loc>https://filippoleone.github.io/promptmigrate/api/</loc>
+         <lastmod>2025-05-13</lastmod>
+    </url>
+    <url>
+         <loc>https://filippoleone.github.io/promptmigrate/changelog/</loc>
+         <lastmod>2025-05-13</lastmod>
+    </url>
+    <url>
+         <loc>https://filippoleone.github.io/promptmigrate/contributing/</loc>
+         <lastmod>2025-05-13</lastmod>
+    </url>
+    <url>
+         <loc>https://filippoleone.github.io/promptmigrate/development/</loc>
+         <lastmod>2025-05-13</lastmod>
+    </url>
+    <url>
+         <loc>https://filippoleone.github.io/promptmigrate/dynamic_values/</loc>
+         <lastmod>2025-05-13</lastmod>
+    </url>
+    <url>
+         <loc>https://filippoleone.github.io/promptmigrate/migrations/</loc>
+         <lastmod>2025-05-13</lastmod>
+    </url>
+    <url>
+         <loc>https://filippoleone.github.io/promptmigrate/usage/</loc>
+         <lastmod>2025-05-13</lastmod>
+    </url>
 </urlset>
