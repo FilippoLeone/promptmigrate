@@ -100,6 +100,13 @@ class PromptManager:
     ):
         self.prompt_file = prompt_file or PROMPT_FILE
         self.state_file = state_file or STATE_FILE
+
+        # Convert relative paths to absolute paths based on current working directory
+        if not self.prompt_file.is_absolute():
+            self.prompt_file = Path.cwd() / self.prompt_file
+        if not self.state_file.is_absolute():
+            self.state_file = Path.cwd() / self.state_file
+
         self.prompt_file.touch(exist_ok=True)
         self.state_file.touch(exist_ok=True)
         self._cache: dict[str, str] | None = None  # lazy‑loaded prompts
