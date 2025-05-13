@@ -125,16 +125,16 @@ from promptmigrate.manager import prompt_revision
 def add_dynamic_prompts(prompts):
     # Date values with formatted output
     prompts["DATE_PROMPT"] = "Today is {{date:format=%B %d, %Y}}."
-    
+
     # Random number between specific ranges
     prompts["NUMBER_PROMPT"] = "Your lucky number is {{number:min=1,max=100}}."
-    
+
     # Random selection from choices
     prompts["CHOICE_PROMPT"] = "Try {{choice:yoga,meditation,running,swimming}} today."
-    
+
     # Text template with variables
     prompts["TEXT_PROMPT"] = "{{text:Hello {name}, welcome to {city}!,name=traveler,city=our platform}}"
-    
+
     return prompts
 ```
 
@@ -192,6 +192,49 @@ for _ in range(3):
 ```bash
 promptmigrate init --package myapp.prompts.revisions
 promptmigrate upgrade --package myapp.prompts.revisions
+```
+
+### Auto-Create Revisions from Manual Changes
+
+PromptMigrate can automatically create revisions from manual changes to your `prompts.yaml` file. This allows non-technical team members to edit prompts directly and have those changes properly tracked in your migration history.
+
+#### Using the CLI
+
+```bash
+# Detect changes and create a revision
+promptmigrate auto-revision
+
+# Preview changes without creating a revision
+promptmigrate auto-revision --dry-run
+
+# Create with custom description
+promptmigrate auto-revision --description "Updated marketing prompts"
+```
+
+#### Enabling Auto-Revision in Python
+
+```python
+from promptmigrate import enable_auto_revision
+
+# Basic auto-revision
+enable_auto_revision()
+
+# With automatic file watching (detects changes in real-time)
+enable_auto_revision(watch=True)
+```
+
+#### Programmatic Usage
+
+```python
+from promptmigrate.autorevision import detect_changes, create_revision_from_changes
+
+# Detect what has changed
+added, modified, removed = detect_changes()
+
+# Create a revision based on those changes
+revision_file = create_revision_from_changes(
+    description="My custom revision from manual changes"
+)
 ```
 
 ### Runtime Migrations

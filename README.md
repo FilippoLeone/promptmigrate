@@ -150,6 +150,56 @@ promptmigrate list
 promptmigrate upgrade --to 002_add_weather_q
 ```
 
+### Auto-create Revisions from Manual Changes
+
+```bash
+# Detect changes in prompts.yaml and create a revision
+promptmigrate auto-revision
+
+# Preview changes without creating a revision
+promptmigrate auto-revision --dry-run
+
+# Create a revision with a custom description
+promptmigrate auto-revision --description "Updated system prompt for better clarity"
+```
+
+## Auto-Revision Feature
+
+PromptMigrate now supports automatically creating migrations from manual changes to your `prompts.yaml` file. This is useful when:
+
+1. Rapid prototyping prompts directly in the YAML file
+2. Collaborating with non-technical team members who edit the YAML directly
+3. Making quick changes without writing migration code
+
+### Enabling Auto-Revision
+
+#### Via Environment Variable
+
+```bash
+# In your shell
+export PROMPTMIGRATE_AUTO_REVISION=1
+```
+
+#### In Python Code
+
+```python
+from promptmigrate import enable_auto_revision
+
+# Enable auto-revision
+enable_auto_revision()
+
+# Enable with real-time file watching
+enable_auto_revision(watch=True)
+```
+
+### Usage Workflow
+
+1. Edit `prompts.yaml` directly to add, modify or remove prompts
+2. Run `promptmigrate auto-revision` to generate a migration from your changes
+3. Run `promptmigrate upgrade` to apply the generated migration
+
+With file watching enabled, the system will automatically create revisions when it detects changes to your prompts.yaml file.
+
 ### Use Custom Revisions Package
 
 ```bash
@@ -215,7 +265,7 @@ PromptMigrate addresses these challenges by:
 
 ## Production Use
 
-PromptMigrate v0.3.0 is production-ready and includes all the features needed for managing prompts in production environments:
+PromptMigrate v0.4.0 is production-ready and includes all the features needed for managing prompts in production environments:
 
 - Comprehensive documentation and examples
 - Full test coverage

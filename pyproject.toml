@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "promptmigrate"
-version = "0.3.0"
+version = "0.4.0"
 description = "Schema‑like migration manager for LLM prompt collections"
 readme = "README.md"
 license = {text = "MIT"}

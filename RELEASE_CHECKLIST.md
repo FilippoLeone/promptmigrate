@@ -16,7 +16,7 @@ This checklist covers the essential steps completed to prepare PromptMigrate for
 - [x] Created a sample prompts.yaml file for reference
 
 ## Version Management ✓
-- [x] Updated version to 0.3.0 in:
+- [x] Updated version to 0.4.0 in:
   - [x] pyproject.toml
   - [x] __init__.py
   - [x] CHANGELOG.md
@@ -34,7 +34,7 @@ This checklist covers the essential steps completed to prepare PromptMigrate for
 - [x] Clear version history in CHANGELOG.md
 
 ## Final Steps
-- [ ] Create a GitHub release with tag v0.3.0
+- [ ] Create a GitHub release with tag v0.4.0
 - [ ] Publish to PyPI
 - [ ] Announce the release
 - [ ] Close any resolved issues in the issue tracker

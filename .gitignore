@@ -57,7 +57,9 @@ regex_test.py
 
 # Project specific
 .promptmigrate_state.json
-prompts.yaml
+.promptmigrate_last_migrated.json
+# Uncomment the next line if you don't want to track your prompt file
+# prompts.yaml
 benchmark_tmp/
 
 # Documentation

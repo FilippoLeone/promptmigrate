@@ -26,11 +26,11 @@ Migrations should be pure functions that take a prompts dictionary and return a 
 def migrate(prompts):
     # Add new prompts
     prompts["SYSTEM"] = "You are a helpful assistant."
-    
+
     # Or modify existing ones (if you know they exist)
     if "USER_GREETING" in prompts:
         prompts["USER_GREETING"] = "Updated greeting"
-        
+
     return prompts
 ```
 
@@ -69,7 +69,7 @@ Add clear descriptions to your migrations:
 
 ```python
 @prompt_revision(
-    "004_format_change", 
+    "004_format_change",
     "Changed format of response prompts to include variable placeholders"
 )
 def update_format(prompts):
@@ -91,11 +91,11 @@ def test_migration():
     def test_migrate(prompts):
         prompts["TEST"] = "Test value"
         return prompts
-    
+
     # Apply it to an empty prompts dict
     manager = PromptManager(prompt_file=Path("test_prompts.yaml"))
     manager.upgrade()
-    
+
     # Verify it worked
     assert manager.TEST == "Test value"
 ```
@@ -180,3 +180,53 @@ def deprecate_prompts(prompts):
         prompts["OLD_PROMPT"] = "[DEPRECATED] Please use NEW_PROMPT instead. " + prompts["OLD_PROMPT"]
     return prompts
 ```
+
+## Auto-Generated Migrations
+
+PromptMigrate supports automatically creating migrations from manual changes to your `prompts.yaml` file.
+
+### Using the Auto-Revision Command
+
+```bash
+# Detect changes and create a revision
+promptmigrate auto-revision
+```
+
+The system will automatically:
+1. Compare the current prompts.yaml with the state after the last applied migration
+2. Identify added, modified, and removed prompts
+3. Generate a new migration file with appropriate code
+4. Register the migration so it can be applied with `promptmigrate upgrade`
+
+### Example Auto-Generated Migration
+
+Here's an example of what an auto-generated migration might look like:
+
+```python
+"""Auto-generated migration from manual changes to prompts.yaml on 2025-05-13 14:22:45."""
+
+from promptmigrate.manager import prompt_revision
+
+
+@prompt_revision("005_auto_changes", "Auto-generated from manual changes to prompts.yaml")
+def migrate(prompts):
+    """Apply changes made directly to prompts.yaml."""
+    # Add new prompts
+    prompts["NEW_PROMPT"] = "This is a new prompt added manually"
+
+    # Update modified prompts
+    prompts["SYSTEM"] = "Updated system prompt with better instructions"
+
+    # Remove deleted prompts
+    if "OLD_PROMPT" in prompts:
+        del prompts["OLD_PROMPT"]
+
+    return prompts
+```
+
+### Best Practices for Auto-Revision
+
+1. **Review Before Upgrading**: Always review auto-generated migrations before applying them
+2. **Update Descriptions**: Consider editing the auto-generated description to be more specific
+3. **Combine with Manual Edits**: You can modify auto-generated migrations to improve them
+4. **Add Tests**: Consider adding tests for important prompt changes

@@ -6,8 +6,11 @@ in application code.
 from __future__ import annotations
 
 import json
+import os
 import random
 import re
+import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from logging import getLogger
@@ -20,6 +23,8 @@ import yaml
 STATE_FILE = Path(".promptmigrate_state.json")
 PROMPT_FILE = Path("prompts.yaml")
 REVISION_ATTR = "__pm_revision__"
+AUTO_REVISION_ENABLED = os.environ.get("PROMPTMIGRATE_AUTO_REVISION", "0") == "1"
+AUTO_REVISION_WATCH = os.environ.get("PROMPTMIGRATE_AUTO_REVISION_WATCH", "0") == "1"
 
 # Logger for this module
 logger = getLogger(__name__)
@@ -85,22 +90,82 @@ class PromptManager:
 
         from promptmigrate import promptmanager as pm
         print(pm.QUESTION_EN_WEATHER)
-    """
+    """  # ‑‑‑ Construction & helpers ‑‑‑
 
-    # ‑‑‑ Construction & helpers ‑‑‑
-    def __init__(self, prompt_file: Path | None = None, state_file: Path | None = None):
+    def __init__(
+        self,
+        prompt_file: Path | None = None,
+        state_file: Path | None = None,
+        auto_watch: bool = None,
+    ):
         self.prompt_file = prompt_file or PROMPT_FILE
         self.state_file = state_file or STATE_FILE
         self.prompt_file.touch(exist_ok=True)
         self.state_file.touch(exist_ok=True)
         self._cache: dict[str, str] | None = None  # lazy‑loaded prompts
+        self._last_modified_time = (
+            self.prompt_file.stat().st_mtime if self.prompt_file.exists() else 0
+        )
+
+        # Set up file watcher if enabled
+        self._auto_watch = auto_watch if auto_watch is not None else AUTO_REVISION_WATCH
+        self._watch_thread = None
+        self._stop_watching = threading.Event()
+
+        if self._auto_watch and AUTO_REVISION_ENABLED:
+            self._start_file_watcher()
+
+    def _start_file_watcher(self):
+        """Start a background thread to watch for changes to prompts.yaml"""
+        if self._watch_thread is not None and self._watch_thread.is_alive():
+            return  # Already watching
+
+        self._stop_watching.clear()
+        self._watch_thread = threading.Thread(
+            target=self._watch_for_changes, daemon=True, name="PromptMigrate-FileWatcher"
+        )
+        self._watch_thread.start()
+        logger.info(f"Started file watcher for {self.prompt_file}")
+
+    def _stop_file_watcher(self):
+        """Stop the file watcher thread"""
+        if self._watch_thread and self._watch_thread.is_alive():
+            self._stop_watching.set()
+            self._watch_thread.join(timeout=1.0)
+            logger.info(f"Stopped file watcher for {self.prompt_file}")
+
+    def _watch_for_changes(self):
+        """Watch for changes to prompts.yaml and create revisions automatically"""
+        check_interval = 1.0  # Check every second
+
+        while not self._stop_watching.is_set():
+            try:
+                if self.prompt_file.exists():
+                    current_mtime = self.prompt_file.stat().st_mtime
+
+                    # If file was modified since last check
+                    if current_mtime > self._last_modified_time:
+                        logger.debug(f"Detected change to {self.prompt_file}")
+                        self._last_modified_time = current_mtime
+
+                        # Wait a short time for file to stabilize (in case it's being edited)
+                        time.sleep(0.5)
+
+                        # Check for changes and create revision if needed
+                        self._check_for_manual_changes()
+            except Exception as e:
+                logger.error(f"Error in file watcher: {e}")
+
+            # Sleep but allow interruption
+            self._stop_watching.wait(check_interval)
 
     # Private: ensure cache is populated
     def _ensure_loaded(self) -> None:
         if self._cache is None:
-            self._cache = self._read_prompts()
+            self._cache = (
+                self._read_prompts()
+            )  # Internal YAML IO separated so *reload()* can bypass attribute cache
 
-    # Internal YAML IO separated so *reload()* can bypass attribute cache
     def _read_prompts(self) -> dict[str, str]:
         if self.prompt_file.read_bytes():
             return yaml.safe_load(self.prompt_file.read_text()) or {}
@@ -108,10 +173,58 @@ class PromptManager:
 
     def _write_prompts(self, prompts: dict[str, str]) -> None:
         self.prompt_file.write_text(yaml.safe_dump(prompts, sort_keys=False))
+        # Store a backup of the current prompts for auto-revision detection
+        self._store_last_migrated_prompts(prompts)
+
+    # Store a copy of the prompts after a migration for change detection
+    def _store_last_migrated_prompts(self, prompts: dict[str, str]) -> None:
+        """Store a copy of the prompts after a migration is applied."""
+        if not AUTO_REVISION_ENABLED:
+            return
+
+        backup_file = Path(".promptmigrate_last_migrated.json")
+        backup_file.write_text(json.dumps(prompts, indent=2, sort_keys=True))
+
+    # Check for manual changes to prompts.yaml and create auto-revision if needed
+    def _check_for_manual_changes(self) -> bool:
+        """
+        Check if prompts.yaml has been manually modified since the last migration.
+        If changes are detected and auto-revision is enabled, create a new revision.
+
+        Returns:
+            bool: True if changes were detected and a revision was created, False otherwise
+        """
+        if not AUTO_REVISION_ENABLED:
+            return False
+
+        # Import here to avoid circular imports
+        try:
+            from .autorevision import create_revision_from_changes, detect_changes
+
+            added, modified, removed = detect_changes()
+            if any([added, modified, removed]):
+                logger.info("Detected manual changes to prompts.yaml")
+
+                # Create a revision from the changes
+                rev_file = create_revision_from_changes(
+                    description="Auto-generated from manual changes to prompts.yaml"
+                )
+                if rev_file:
+                    logger.info(f"Created auto-revision: {rev_file}")
+                    return True
+
+        except Exception as e:
+            logger.error(f"Error checking for manual changes: {e}")
+
+        return False
 
     # ‑‑‑ User‑facing API ‑‑‑
     def reload(self) -> "PromptManager":
         """Reload *prompts.yaml* into the attribute cache and return *self*."""
+        if AUTO_REVISION_ENABLED:
+            # Check for manual changes before reloading
+            self._check_for_manual_changes()
+
         self._cache = self._read_prompts()
         return self
 
@@ -136,8 +249,7 @@ class PromptManager:
                 return self._process_dynamic_values(v)
         raise AttributeError(f"Prompt {name!r} not found in prompts.yaml")
 
-    # Legacy public helpers kept for backwards‑compat
-    def load_prompts(self) -> dict[str, str]:  # deprecated in docs, kept for API
+        # Legacy public helpers kept for backwards‑compat    def load_prompts(self) -> dict[str, str]:  # deprecated in docs, kept for API
         self.reload()
         assert self._cache is not None
         return self._cache.copy()
@@ -156,6 +268,14 @@ class PromptManager:
         self.state_file.write_text(json.dumps({"rev": rev_id}))
 
     def upgrade(self, target: str | None = None) -> None:
+        # First check if there are manual changes to prompts.yaml that need to be captured
+        if AUTO_REVISION_ENABLED:
+            changes_detected = self._check_for_manual_changes()
+            if changes_detected:
+                # If we created an auto-revision, we need to reload migrations
+                # to include the newly created one
+                logger.info("Auto-created revision from manual changes to prompts.yaml")
+
         applied = self.current_rev()
         prompts = self._read_prompts()
 

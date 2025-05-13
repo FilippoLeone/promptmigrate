@@ -10,6 +10,7 @@ from typing import Optional
 import click
 
 from . import __version__, logger
+from .autorevision import create_revision_from_changes, detect_changes
 from .manager import PromptManager, load_revision_module
 
 _pkg_name = "promptmigrate_revisions"
@@ -72,3 +73,58 @@ def list_cmd() -> None:
             status = "[pending]"
 
         click.echo(f"{migration.rev_id}: {migration.description} {status}")
+
+
+@cli.command("auto-revision")
+@click.option("--description", "-d", help="Custom description for the auto-generated revision")
+@click.option("--package", "pkg", default=_pkg_name, help="Package where revision will be created")
+@click.option("--dry-run", is_flag=True, help="Only show changes without creating a revision")
+def auto_revision_cmd(description: Optional[str], pkg: str, dry_run: bool) -> None:
+    """Detect manual changes to prompts.yaml and create a revision automatically."""
+    # Ensure package exists
+    path = Path(pkg.replace(".", "/"))
+    if not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "__init__.py").touch(exist_ok=True)
+        click.echo(f"✅ Created revisions package at {path}")
+
+    # Get changes
+    added, modified, removed = detect_changes()
+
+    if not any([added, modified, removed]):
+        click.echo("No changes detected in prompts.yaml compared to the current revision state.")
+        return
+
+    # Show changes
+    click.echo("Changes detected in prompts.yaml:")
+
+    if added:
+        click.echo("\n✨ Added prompts:")
+        for key in added:
+            click.echo(f"  - {key}")
+
+    if modified:
+        click.echo("\n📝 Modified prompts:")
+        for key in modified:
+            click.echo(f"  - {key}")
+
+    if removed:
+        click.echo("\n🗑️ Removed prompts:")
+        for key in removed:
+            click.echo(f"  - {key}")
+
+    if dry_run:
+        click.echo(
+            "\n🔍 Dry run - no revision created. Run without --dry-run to create the revision."
+        )
+        return
+
+    # Create revision
+    desc = description or "Auto-generated from manual changes to prompts.yaml"
+    rev_file = create_revision_from_changes(description=desc)
+
+    if rev_file:
+        click.echo(f"\n✅ Created new revision at {rev_file}")
+        click.echo("Run 'promptmigrate upgrade' to apply this revision.")
+    else:
+        click.echo("\n❌ Failed to create revision file.")

@@ -1,0 +1,11 @@
+# Standard prompts for demo and testing
+SYSTEM: You are a helpful assistant.
+OPENAI_SYSTEM: 'You are an AI assistant built by OpenAI. {{date:format=Today is %B %d, %Y.}}'
+ANTHROPIC_SYSTEM: 'You are Claude, an AI assistant by Anthropic. {{date:format=Current date: %Y-%m-%d.}}'
+GEMINI_SYSTEM: You are Gemini, a large language model by Google. {{date:format=Today's date is %d %B %Y.}}
+DATE_GREETING: Today is {{date:format=%B %d, %Y}}. How can I help you?
+WEATHER_QUESTION: What's the weather like today?
+WEATHER_FOLLOW_UP: Would you like to know the forecast for tomorrow as well?
+PERSONALIZED_GREETING: '{{text:Hello {name}! Welcome to {service}.,name=valued customer,service=our AI assistant}}'
+LUCKY_NUMBER: Your lucky number today is {{number:min=1,max=100}}.
+MOOD_SUGGESTION: I notice you're feeling down. Have you tried {{choice:meditation,deep breathing,going for a walk,listening to music}} today?
