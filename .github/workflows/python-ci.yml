@@ -80,6 +80,7 @@ jobs:
         python -m pip install --upgrade pip
         # Install specific versions to ensure compatibility
         pip install mkdocs>=1.5 mkdocs-material>=9.5
+        pip install "mkdocs-autorefs<1.0.0"
         pip install "mkdocstrings[python]>=0.24,<0.25"
         pip install -e ".[docs]"
     - name: Build documentation

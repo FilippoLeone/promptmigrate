@@ -42,6 +42,7 @@ nav:
 
 plugins:
   - search
+  - autorefs
   - mkdocstrings:
       handlers:
         python:
