@@ -29,15 +29,13 @@ def test_detect_changes(tmp_path):
     manager = PromptManager(prompt_file=prompt_file, state_file=state_file)
 
     # Apply initial state
-    manager.save_prompts(prompts)
-
-    # Modify prompts.yaml directly
+    manager.save_prompts(prompts)  # Modify prompts.yaml directly
     modified_prompts = {"SYSTEM": "Updated prompt", "NEW_PROMPT": "Brand new prompt"}
     with open(prompt_file, "w") as f:
         yaml.dump(modified_prompts, f)
 
     # Detect changes
-    added, modified, removed = detect_changes()
+    added, modified, removed = detect_changes(prompt_file=prompt_file, state_file=state_file)
 
     # Verify detection
     assert "NEW_PROMPT" in added
@@ -65,10 +63,13 @@ def test_create_revision_from_changes(tmp_path):
     # Directly modify prompts.yaml
     modified_prompts = {"SYSTEM": "Updated system prompt", "USER": "New user prompt"}
     with open(prompt_file, "w") as f:
-        yaml.dump(modified_prompts, f)
-
-    # Create revision
-    revision_file = create_revision_from_changes(rev_id="001_test_auto")
+        yaml.dump(modified_prompts, f)  # Create revision
+    revision_file = create_revision_from_changes(
+        rev_id="001_test_auto",
+        prompt_file=prompt_file,
+        state_file=state_file,
+        revisions_dir=revisions_dir,
+    )
 
     # Verify revision was created
     assert revision_file is not None

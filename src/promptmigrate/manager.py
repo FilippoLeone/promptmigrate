@@ -195,19 +195,21 @@ class PromptManager:
             bool: True if changes were detected and a revision was created, False otherwise
         """
         if not AUTO_REVISION_ENABLED:
-            return False
-
-        # Import here to avoid circular imports
+            return False  # Import here to avoid circular imports
         try:
             from .autorevision import create_revision_from_changes, detect_changes
 
-            added, modified, removed = detect_changes()
+            added, modified, removed = detect_changes(
+                prompt_file=self.prompt_file, state_file=self.state_file
+            )
             if any([added, modified, removed]):
                 logger.info("Detected manual changes to prompts.yaml")
 
                 # Create a revision from the changes
                 rev_file = create_revision_from_changes(
-                    description="Auto-generated from manual changes to prompts.yaml"
+                    description="Auto-generated from manual changes to prompts.yaml",
+                    prompt_file=self.prompt_file,
+                    state_file=self.state_file,
                 )
                 if rev_file:
                     logger.info(f"Created auto-revision: {rev_file}")
