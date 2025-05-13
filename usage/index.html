@@ -529,6 +529,48 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#auto-create-revisions-from-manual-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Auto-Create Revisions from Manual Changes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Auto-Create Revisions from Manual Changes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using the CLI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enabling-auto-revision-in-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      Enabling Auto-Revision in Python
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#programmatic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Programmatic Usage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#runtime-migrations" class="md-nav__link">
     <span class="md-ellipsis">
       Runtime Migrations
@@ -919,6 +961,48 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#auto-create-revisions-from-manual-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Auto-Create Revisions from Manual Changes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Auto-Create Revisions from Manual Changes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using the CLI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enabling-auto-revision-in-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      Enabling Auto-Revision in Python
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#programmatic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Programmatic Usage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#runtime-migrations" class="md-nav__link">
     <span class="md-ellipsis">
       Runtime Migrations
@@ -1093,6 +1177,38 @@ promptmigrate<span class="w"> </span>init
 <h3 id="custom-revisions-package">Custom Revisions Package<a class="headerlink" href="#custom-revisions-package" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>promptmigrate<span class="w"> </span>init<span class="w"> </span>--package<span class="w"> </span>myapp.prompts.revisions
 promptmigrate<span class="w"> </span>upgrade<span class="w"> </span>--package<span class="w"> </span>myapp.prompts.revisions
+</code></pre></div>
+<h3 id="auto-create-revisions-from-manual-changes">Auto-Create Revisions from Manual Changes<a class="headerlink" href="#auto-create-revisions-from-manual-changes" title="Permanent link">&para;</a></h3>
+<p>PromptMigrate can automatically create revisions from manual changes to your <code>prompts.yaml</code> file. This allows non-technical team members to edit prompts directly and have those changes properly tracked in your migration history.</p>
+<h4 id="using-the-cli">Using the CLI<a class="headerlink" href="#using-the-cli" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># Detect changes and create a revision</span>
+promptmigrate<span class="w"> </span>auto-revision
+
+<span class="c1"># Preview changes without creating a revision</span>
+promptmigrate<span class="w"> </span>auto-revision<span class="w"> </span>--dry-run
+
+<span class="c1"># Create with custom description</span>
+promptmigrate<span class="w"> </span>auto-revision<span class="w"> </span>--description<span class="w"> </span><span class="s2">&quot;Updated marketing prompts&quot;</span>
+</code></pre></div>
+<h4 id="enabling-auto-revision-in-python">Enabling Auto-Revision in Python<a class="headerlink" href="#enabling-auto-revision-in-python" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">promptmigrate</span><span class="w"> </span><span class="kn">import</span> <span class="n">enable_auto_revision</span>
+
+<span class="c1"># Basic auto-revision</span>
+<span class="n">enable_auto_revision</span><span class="p">()</span>
+
+<span class="c1"># With automatic file watching (detects changes in real-time)</span>
+<span class="n">enable_auto_revision</span><span class="p">(</span><span class="n">watch</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="programmatic-usage">Programmatic Usage<a class="headerlink" href="#programmatic-usage" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">promptmigrate.autorevision</span><span class="w"> </span><span class="kn">import</span> <span class="n">detect_changes</span><span class="p">,</span> <span class="n">create_revision_from_changes</span>
+
+<span class="c1"># Detect what has changed</span>
+<span class="n">added</span><span class="p">,</span> <span class="n">modified</span><span class="p">,</span> <span class="n">removed</span> <span class="o">=</span> <span class="n">detect_changes</span><span class="p">()</span>
+
+<span class="c1"># Create a revision based on those changes</span>
+<span class="n">revision_file</span> <span class="o">=</span> <span class="n">create_revision_from_changes</span><span class="p">(</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;My custom revision from manual changes&quot;</span>
+<span class="p">)</span>
 </code></pre></div>
 <h3 id="runtime-migrations">Runtime Migrations<a class="headerlink" href="#runtime-migrations" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">promptmigrate.manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">prompt_revision</span><span class="p">,</span> <span class="n">PromptManager</span>

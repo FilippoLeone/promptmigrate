@@ -493,6 +493,48 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#auto-generated-migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Auto-Generated Migrations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Auto-Generated Migrations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-the-auto-revision-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using the Auto-Revision Command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-auto-generated-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Auto-Generated Migration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#best-practices-for-auto-revision" class="md-nav__link">
+    <span class="md-ellipsis">
+      Best Practices for Auto-Revision
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -737,6 +779,48 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#auto-generated-migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Auto-Generated Migrations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Auto-Generated Migrations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-the-auto-revision-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using the Auto-Revision Command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-auto-generated-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Auto-Generated Migration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#best-practices-for-auto-revision" class="md-nav__link">
+    <span class="md-ellipsis">
+      Best Practices for Auto-Revision
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -803,7 +887,7 @@
 <h3 id="3-document-your-changes">3. Document Your Changes<a class="headerlink" href="#3-document-your-changes" title="Permanent link">&para;</a></h3>
 <p>Add clear descriptions to your migrations:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@prompt_revision</span><span class="p">(</span>
-    <span class="s2">&quot;004_format_change&quot;</span><span class="p">,</span> 
+    <span class="s2">&quot;004_format_change&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Changed format of response prompts to include variable placeholders&quot;</span>
 <span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">update_format</span><span class="p">(</span><span class="n">prompts</span><span class="p">):</span>
@@ -887,6 +971,46 @@
         <span class="n">prompts</span><span class="p">[</span><span class="s2">&quot;OLD_PROMPT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;[DEPRECATED] Please use NEW_PROMPT instead. &quot;</span> <span class="o">+</span> <span class="n">prompts</span><span class="p">[</span><span class="s2">&quot;OLD_PROMPT&quot;</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">prompts</span>
 </code></pre></div>
+<h2 id="auto-generated-migrations">Auto-Generated Migrations<a class="headerlink" href="#auto-generated-migrations" title="Permanent link">&para;</a></h2>
+<p>PromptMigrate supports automatically creating migrations from manual changes to your <code>prompts.yaml</code> file.</p>
+<h3 id="using-the-auto-revision-command">Using the Auto-Revision Command<a class="headerlink" href="#using-the-auto-revision-command" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Detect changes and create a revision</span>
+promptmigrate<span class="w"> </span>auto-revision
+</code></pre></div>
+<p>The system will automatically:
+1. Compare the current prompts.yaml with the state after the last applied migration
+2. Identify added, modified, and removed prompts
+3. Generate a new migration file with appropriate code
+4. Register the migration so it can be applied with <code>promptmigrate upgrade</code></p>
+<h3 id="example-auto-generated-migration">Example Auto-Generated Migration<a class="headerlink" href="#example-auto-generated-migration" title="Permanent link">&para;</a></h3>
+<p>Here's an example of what an auto-generated migration might look like:</p>
+<div class="highlight"><pre><span></span><code><span class="sd">&quot;&quot;&quot;Auto-generated migration from manual changes to prompts.yaml on 2025-05-13 14:22:45.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">promptmigrate.manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">prompt_revision</span>
+
+
+<span class="nd">@prompt_revision</span><span class="p">(</span><span class="s2">&quot;005_auto_changes&quot;</span><span class="p">,</span> <span class="s2">&quot;Auto-generated from manual changes to prompts.yaml&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">migrate</span><span class="p">(</span><span class="n">prompts</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply changes made directly to prompts.yaml.&quot;&quot;&quot;</span>
+    <span class="c1"># Add new prompts</span>
+    <span class="n">prompts</span><span class="p">[</span><span class="s2">&quot;NEW_PROMPT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;This is a new prompt added manually&quot;</span>
+
+    <span class="c1"># Update modified prompts</span>
+    <span class="n">prompts</span><span class="p">[</span><span class="s2">&quot;SYSTEM&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Updated system prompt with better instructions&quot;</span>
+
+    <span class="c1"># Remove deleted prompts</span>
+    <span class="k">if</span> <span class="s2">&quot;OLD_PROMPT&quot;</span> <span class="ow">in</span> <span class="n">prompts</span><span class="p">:</span>
+        <span class="k">del</span> <span class="n">prompts</span><span class="p">[</span><span class="s2">&quot;OLD_PROMPT&quot;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">prompts</span>
+</code></pre></div>
+<h3 id="best-practices-for-auto-revision">Best Practices for Auto-Revision<a class="headerlink" href="#best-practices-for-auto-revision" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Review Before Upgrading</strong>: Always review auto-generated migrations before applying them</li>
+<li><strong>Update Descriptions</strong>: Consider editing the auto-generated description to be more specific</li>
+<li><strong>Combine with Manual Edits</strong>: You can modify auto-generated migrations to improve them</li>
+<li><strong>Add Tests</strong>: Consider adding tests for important prompt changes</li>
+</ol>
 
 
 
