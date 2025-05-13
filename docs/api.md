@@ -76,9 +76,9 @@ def list_migrations(self) -> list[PromptMigration]:
 def process_dynamic_value(self, prompt: str) -> str:
     """
     Process dynamic values in a prompt string.
-    
+
     This method finds and processes all dynamic value placeholders in the format
-    {{type:options}} and replaces them with their computed values.
+    {% raw %}{{type:options}}{% endraw %} and replaces them with their computed values.
     """
 ```
 
@@ -88,8 +88,8 @@ def process_dynamic_value(self, prompt: str) -> str:
 def process_date_placeholder(self, options_str: str) -> str:
     """
     Process a date placeholder with format option.
-    
-    Format: {{date:format=%Y-%m-%d}}
+
+    Format: {% raw %}{{date:format=%Y-%m-%d}}{% endraw %}
     Returns the current date/time formatted according to the format string.
     """
 ```
@@ -100,8 +100,8 @@ def process_date_placeholder(self, options_str: str) -> str:
 def process_number_placeholder(self, options_str: str) -> str:
     """
     Process a number placeholder with min/max options.
-    
-    Format: {{number:min=1,max=100}}
+
+    Format: {% raw %}{{number:min=1,max=100}}{% endraw %}
     Returns a random integer between min and max (inclusive).
     """
 ```
@@ -112,8 +112,8 @@ def process_number_placeholder(self, options_str: str) -> str:
 def process_choice_placeholder(self, options_str: str) -> str:
     """
     Process a choice placeholder with comma-separated options.
-    
-    Format: {{choice:option1,option2,option3}}
+
+    Format: {% raw %}{{choice:option1,option2,option3}}{% endraw %}
     Returns a randomly selected option from the list.
     """
 ```
@@ -124,8 +124,8 @@ def process_choice_placeholder(self, options_str: str) -> str:
 def process_text_placeholder(self, options_str: str) -> str:
     """
     Process a text placeholder with a template and variables.
-    
-    Format: {{text:template_string,var1=value1,var2=value2}}
+
+    Format: {% raw %}{{text:template_string,var1=value1,var2=value2}}{% endraw %}
     Returns the template with variables substituted.
     """
 ```
@@ -238,7 +238,7 @@ class PromptMigration:
     description: str
     created_at: datetime
     fn: Callable[[dict[str, str]], dict[str, str]]
-    
+
     def apply(self, prompts: dict[str, str]) -> dict[str, str]:
         """Apply the migration function to the prompts dict."""
 ```
@@ -297,7 +297,7 @@ PromptMigrate supports dynamic value placeholders that can be used in your promp
 Dynamic values use the following format:
 
 ```
-{{type:options}}
+{% raw %}{{type:options}}{% endraw %}
 ```
 
 Where:
@@ -309,7 +309,7 @@ Where:
 #### Date
 
 ```
-{{date:format=%Y-%m-%d}}
+{% raw %}{{date:format=%Y-%m-%d}}{% endraw %}
 ```
 
 Options:
@@ -317,13 +317,13 @@ Options:
 
 Example:
 ```
-Today is {{date:format=%B %d, %Y}}.
+{% raw %}Today is {{date:format=%B %d, %Y}}.{% endraw %}
 ```
 
 #### Number
 
 ```
-{{number:min=1,max=100}}
+{% raw %}{{number:min=1,max=100}}{% endraw %}
 ```
 
 Options:
@@ -332,13 +332,13 @@ Options:
 
 Example:
 ```
-Your lucky number today is {{number:min=1,max=10}}.
+{% raw %}Your lucky number today is {{number:min=1,max=10}}.{% endraw %}
 ```
 
 #### Choice
 
 ```
-{{choice:option1,option2,option3}}
+{% raw %}{{choice:option1,option2,option3}}{% endraw %}
 ```
 
 Options:
@@ -346,13 +346,13 @@ Options:
 
 Example:
 ```
-I suggest trying {{choice:yoga,meditation,running}} today.
+{% raw %}I suggest trying {{choice:yoga,meditation,running}} today.{% endraw %}
 ```
 
 #### Text
 
 ```
-{{text:Hello {name}!,name=World}}
+{% raw %}{{text:Hello {name}!,name=World}}{% endraw %}
 ```
 
 Options:
@@ -361,5 +361,5 @@ Options:
 
 Example:
 ```
-{{text:Welcome to {city}, {name}!,city=New York,name=traveler}}
+{% raw %}{{text:Welcome to {city}, {name}!,city=New York,name=traveler}}{% endraw %}
 ```
