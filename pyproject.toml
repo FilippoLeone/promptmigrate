@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "promptmigrate"
-version = "0.4.0"
+version = "0.4.3"
 description = "Schema‑like migration manager for LLM prompt collections"
 readme = "README.md"
 license = {text = "MIT"}
@@ -19,6 +19,7 @@ requires-python = ">=3.9"
 dependencies = [
   "click>=8.1",
   "pyyaml>=6.0",
+  "jinja2",
 ]
 keywords = ["prompt‑engineering", "llm", "migration", "revision", "cli", "prompt-management"]
 classifiers = [
@@ -47,6 +48,11 @@ dev = [
   "flake8>=6.0",
   "build>=0.10",
   "twine>=4.0",
+  "pytest",
+  "ruff",
+  "mypy",
+  "pre-commit",
+  "watchdog",
 ]
 docs = [
   "mkdocs>=1.5",

@@ -265,7 +265,7 @@ PromptMigrate addresses these challenges by:
 
 ## Production Use
 
-PromptMigrate v0.4.0 is production-ready and includes all the features needed for managing prompts in production environments:
+PromptMigrate v0.4.3 is production-ready and includes all the features needed for managing prompts in production environments:
 
 - Comprehensive documentation and examples
 - Full test coverage

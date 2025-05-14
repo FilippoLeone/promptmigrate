@@ -8,8 +8,8 @@ can reference prompts via **attribute access**, e.g. ``promptmanager.GREETING``.
 from importlib import metadata as _metadata
 from logging import getLogger
 
+from .manager import get_auto_revision_setting  # MODIFIED
 from .manager import (  # noqa: E402  pylint: disable=wrong‑import‑position
-    AUTO_REVISION_ENABLED,
     AUTO_REVISION_WATCH,
     PromptManager,
     PromptMigration,
@@ -36,7 +36,7 @@ __all__ = [
 try:
     __version__ = _metadata.version(__name__)
 except _metadata.PackageNotFoundError:  # local, editable install
-    __version__ = "0.4.0"
+    __version__ = "0.4.3"
 
 logger = getLogger(__name__)
 
@@ -62,13 +62,20 @@ def enable_auto_revision(watch: bool = False):
     import os
 
     os.environ["PROMPTMIGRATE_AUTO_REVISION"] = "1"
+    # The PromptManager now internally uses AUTO_REVISION_WATCH based on this env var
     if watch:
         os.environ["PROMPTMIGRATE_AUTO_REVISION_WATCH"] = "1"
+    else:
+        # Ensure it's disabled if watch is False
+        os.environ["PROMPTMIGRATE_AUTO_REVISION_WATCH"] = "0"
 
-    # Re-create the singleton with auto-revision enabled
+    # Re-create the singleton with auto-revision enabled/disabled
+    # The PromptManager will pick up the environment variables.
+    # We pass skip_manual_check=False to ensure the watcher is started if env vars are set.
     global promptmanager
-    promptmanager = PromptManager(auto_watch=watch)
+    promptmanager = PromptManager(skip_manual_check=False)
 
 
 # Default singleton instance
-promptmanager = PromptManager()
+# Initialize with skip_manual_check=False to allow watcher to start if env vars are set
+promptmanager = PromptManager(skip_manual_check=False)

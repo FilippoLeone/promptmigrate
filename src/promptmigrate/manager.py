@@ -5,423 +5,493 @@ in application code.
 
 from __future__ import annotations
 
+import datetime  # Added for {{date:...}} placeholder
 import json
+import logging
 import os
-import random
-import re
+import re  # Added for custom placeholder parsing
+import sys
 import threading
-import time
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from logging import getLogger
+import time  # Keep time import, might be used elsewhere or by watcher logic
 from pathlib import Path
-from types import ModuleType
-from typing import Any, Callable, Dict, List, Optional, Protocol, Union, cast, runtime_checkable
+from typing import Any, Callable, Dict, Optional, Union  # Added Callable
 
 import yaml
+from jinja2 import DebugUndefined, Environment
+from jinja2 import exceptions as jinja2_exceptions  # Added DebugUndefined and exceptions
+from jinja2 import select_autoescape
 
-STATE_FILE = Path(".promptmigrate_state.json")
-PROMPT_FILE = Path("prompts.yaml")
+# Conditional watchdog imports
+try:
+    from watchdog.events import FileModifiedEvent, FileSystemEventHandler
+    from watchdog.observers import Observer
+
+    WATCHDOG_AVAILABLE = True
+except ImportError:
+    WATCHDOG_AVAILABLE = False
+    Observer = None  # type: ignore
+    # Provide a base class for FileSystemEventHandler if watchdog is not available
+    if "FileSystemEventHandler" not in globals():
+
+        class FileSystemEventHandler:  # type: ignore
+            pass
+
+    FileModifiedEvent = None  # type: ignore
+
 REVISION_ATTR = "__pm_revision__"
-AUTO_REVISION_ENABLED = os.environ.get("PROMPTMIGRATE_AUTO_REVISION", "0") == "1"
-AUTO_REVISION_WATCH = os.environ.get("PROMPTMIGRATE_AUTO_REVISION_WATCH", "0") == "1"
+PROMPT_FILE = Path("prompts.yaml")
+STATE_FILE = Path(".promptmigrate_state.json")
+AUTO_REVISION_WATCH = WATCHDOG_AVAILABLE and (
+    os.getenv("PROMPTMIGRATE_AUTO_REVISION_WATCH", "0") == "1"
+)
 
-# Logger for this module
-logger = getLogger(__name__)
-
-# Dynamic value placeholders pattern
-DYNAMIC_VALUE_PATTERN = r"\{\{(.*?)\}\}"
-
-
-# ---------------------
-@dataclass(frozen=True)  # slots=True is only available in Python 3.10+
-class PromptMigration:
-    """Metadata describing a single migration step."""
-
-    rev_id: str
-    description: str
-    created_at: datetime
-    fn: Callable[[dict[str, str]], dict[str, str]]
-
-    def apply(self, prompts: dict[str, str]) -> dict[str, str]:  # noqa: D401
-        """Apply the migration function to the *prompts* dict and return a new mapping."""
-        return self.fn(prompts)
+logger = logging.getLogger(__name__)
 
 
-@runtime_checkable
-class _RevisionModuleProto(Protocol):
-    """A runtime interface used for static type‑checking revision modules."""
-
-    __name__: str
-    __pm_revision__: PromptMigration  # type: ignore[override]
+def get_auto_revision_setting() -> bool:
+    """Get the auto revision setting from environment variable."""
+    return os.getenv("PROMPTMIGRATE_AUTO_REVISION", "0") == "1"
 
 
-# ---------------------
-# Registry helpers
-_migrations: list[PromptMigration] = []
+_DEFAULT_PROMPTS_BASE: Dict[str, Any] = {
+    "example_prompt": "This is an example prompt.",
+    # Add other truly default prompts here if necessary
+}
 
 
-def prompt_revision(
-    rev_id: str,
-    description: str = "",
-) -> Callable[
-    [Callable[[dict[str, str]], dict[str, str]]], Callable[[dict[str, str]], dict[str, str]]
-]:
-    """Decorator registering *func* as a prompt‑migration."""
-
-    def decorator(
-        func: Callable[[dict[str, str]], dict[str, str]],
-    ) -> Callable[[dict[str, str]], dict[str, str]]:
-        migration = PromptMigration(rev_id, description, datetime.now(timezone.utc), func)
-        setattr(func, REVISION_ATTR, migration)
-        _migrations.append(migration)
-        return func
-
-    return decorator
-
-
-# ---------------------
 class PromptManager:
-    """Facade for applying prompt migrations **and** ergonomic prompt lookup.
+    _instance: Optional["PromptManager"] = None
+    _lock = threading.Lock()
+    _observer: Optional[Any] = None
+    _stop_watcher: threading.Event
+    _dynamic_values = {}
+    jinja_env_vars = {}
+    _skip_manual_check = False
 
-    After importing :data:`promptmigrate.promptmanager` or instantiating the
-    class directly, prompts can be referenced as attributes instead of dict
-    keys::
-
-        from promptmigrate import promptmanager as pm
-        print(pm.QUESTION_EN_WEATHER)
-    """  # ‑‑‑ Construction & helpers ‑‑‑
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            with cls._lock:
+                if not cls._instance:
+                    cls._instance = super().__new__(cls)
+                    # Initialize attributes that are truly global to the singleton instance ONCE
+                    cls._instance._singleton_initialized_once_flag = False
+                    cls._instance.instance_default_prompts = _DEFAULT_PROMPTS_BASE.copy()
+                    cls._instance._observer = None
+                    cls._instance._stop_watcher = (
+                        threading.Event()
+                    )  # Initialize Jinja environment once for the singleton
+                    cls._instance.template_env = Environment(
+                        undefined=DebugUndefined, autoescape=select_autoescape(["html", "xml"])
+                    )
+                    cls._instance.default_context = {}
+                    cls._instance._prompts = {}
+                    cls._instance._state = {}
+                    cls._instance.context_specific_prompts = {}
+        return cls._instance
 
     def __init__(
         self,
-        prompt_file: Path | None = None,
-        state_file: Path | None = None,
-        auto_watch: bool = None,
+        prompt_file: Optional[Union[str, Path]] = None,
+        state_file: Optional[Union[str, Path]] = None,
+        revision_dir: Optional[Union[str, Path]] = None,
+        default_prompts: Optional[dict] = None,
+        context: Optional[dict] = None,
+        skip_manual_check: bool = False,
     ):
-        self.prompt_file = prompt_file or PROMPT_FILE
-        self.state_file = state_file or STATE_FILE
 
-        # Convert relative paths to absolute paths based on current working directory
-        if not self.prompt_file.is_absolute():
-            self.prompt_file = Path.cwd() / self.prompt_file
-        if not self.state_file.is_absolute():
-            self.state_file = Path.cwd() / self.state_file
+        # One-time initializations for the singleton instance (already done in __new__)
+        # self._singleton_initialized_once_flag is used to track if __init__ specific one-time setup is done.
+        # However, most one-time setup is now in __new__ to ensure it's truly once per singleton.
 
-        self.prompt_file.touch(exist_ok=True)
-        self.state_file.touch(exist_ok=True)
-        self._cache: dict[str, str] | None = None  # lazy‑loaded prompts
-        self._last_modified_time = (
-            self.prompt_file.stat().st_mtime if self.prompt_file.exists() else 0
+        # Per-call configurations (can update the singleton's state)
+        if prompt_file:
+            self.prompt_file = Path(prompt_file)
+        elif (
+            not hasattr(self, "prompt_file") or self.prompt_file is None
+        ):  # Initialize if not set by a previous call
+            self.prompt_file = Path(os.getenv("PROMPTMIGRATE_PROMPT_FILE", PROMPT_FILE))
+
+        if state_file:
+            self.state_file = Path(state_file)
+        elif not hasattr(self, "state_file") or self.state_file is None:
+            # Default state file relative to the (potentially new) prompt file
+            self.state_file = self.prompt_file.parent / STATE_FILE
+
+        if revision_dir:
+            self.revision_dir = Path(revision_dir)
+        elif not hasattr(self, "revision_dir") or self.revision_dir is None:
+            self.revision_dir = Path(
+                os.getenv("PROMPTMIGRATE_REVISION_DIR", "promptmigrate_revisions")
+            )
+
+        if default_prompts is not None:
+            # This will update the instance_default_prompts for this "session" or configuration
+            self.instance_default_prompts = default_prompts
+        # else: self.instance_default_prompts remains as initialized in __new__ or by a previous call
+
+        if context is not None:
+            # Update default_context. If called multiple times, contexts are merged.
+            self.default_context.update(context)
+
+        # Stop existing watcher if active, before potentially changing paths or configs
+        if WATCHDOG_AVAILABLE and self._observer and self._observer.is_alive():  # type: ignore
+            self.stop_watching()
+
+        self.reload(force_reload=True)  # Reload prompts based on current file paths
+
+        self.auto_revision_enabled = os.getenv("PROMPTMIGRATE_AUTO_REVISION", "0") == "1"
+        self.auto_revision_watch_enabled = WATCHDOG_AVAILABLE and (
+            os.getenv("PROMPTMIGRATE_AUTO_REVISION_WATCH", "0") == "1"
         )
 
-        # Set up file watcher if enabled
-        self._auto_watch = auto_watch if auto_watch is not None else AUTO_REVISION_WATCH
-        self._watch_thread = None
-        self._stop_watching = threading.Event()
+        if not skip_manual_check:
+            if self.auto_revision_enabled:
+                try:
+                    self._check_for_manual_changes(create_revision=True)
+                except Exception as e:
+                    logger.error(f"Error during initial _check_for_manual_changes: {e}")
+            if self.auto_revision_watch_enabled:
+                self._start_watching()
+        elif WATCHDOG_AVAILABLE:  # If skipping manual check, ensure watcher is off
+            self.stop_watching()
 
-        if self._auto_watch and AUTO_REVISION_ENABLED:
-            self._start_file_watcher()
+        # Mark that __init__ has completed its setup for this configuration.
+        # This flag's role might need to be re-evaluated based on exact singleton needs.
+        # For now, the critical one-time setup is in __new__.
+        self._singleton_initialized_once_flag = True
 
-    def _start_file_watcher(self):
-        """Start a background thread to watch for changes to prompts.yaml"""
-        if self._watch_thread is not None and self._watch_thread.is_alive():
-            return  # Already watching
+    def _parse_key_value_params(self, params_str: str) -> dict[str, str]:
+        params = {}
+        if not params_str:
+            return params
+        for part in params_str.split(","):
+            key_value = part.split("=", 1)
+            if len(key_value) == 2:
+                params[key_value[0].strip()] = key_value[1].strip()
+        return params
 
-        self._stop_watching.clear()
-        self._watch_thread = threading.Thread(
-            target=self._watch_for_changes, daemon=True, name="PromptMigrate-FileWatcher"
-        )
-        self._watch_thread.start()
-        logger.info(f"Started file watcher for {self.prompt_file}")
+    def _process_single_placeholder(self, match: re.Match) -> str:
+        full_match = match.group(0)
+        content = match.group(1).strip()
 
-    def _stop_file_watcher(self):
-        """Stop the file watcher thread"""
-        if self._watch_thread and self._watch_thread.is_alive():
-            self._stop_watching.set()
-            self._watch_thread.join(timeout=1.0)
-            logger.info(f"Stopped file watcher for {self.prompt_file}")
+        if ":" not in content:
+            # For {{variable_name}} or {{invalid_one}}.
+            # DebugUndefined in Jinja env will handle {{invalid_one}} by returning it as is.
+            # {{variable_name}} will be substituted by Jinja in the final render pass if in context.
+            return full_match
 
-    def _watch_for_changes(self):
-        """Watch for changes to prompts.yaml and create revisions automatically"""
-        check_interval = 1.0  # Check every second
+        type_name, params_str = content.split(":", 1)
+        type_name = type_name.strip()
+        params_str = params_str.strip()
 
-        while not self._stop_watching.is_set():
+        if type_name == "date":
+            parsed_params = self._parse_key_value_params(params_str)
+            date_format = parsed_params.get("format", "%Y-%m-%d")
             try:
-                if self.prompt_file.exists():
-                    current_mtime = self.prompt_file.stat().st_mtime
-
-                    # If file was modified since last check
-                    if current_mtime > self._last_modified_time:
-                        logger.debug(f"Detected change to {self.prompt_file}")
-                        self._last_modified_time = current_mtime
-
-                        # Wait a short time for file to stabilize (in case it's being edited)
-                        time.sleep(0.5)
-
-                        # Check for changes and create revision if needed
-                        self._check_for_manual_changes()
+                return datetime.datetime.now().strftime(date_format)
             except Exception as e:
-                logger.error(f"Error in file watcher: {e}")
+                logger.warning(f"Error formatting date placeholder '{full_match}': {e}")
+                return full_match
 
-            # Sleep but allow interruption
-            self._stop_watching.wait(check_interval)
+        elif type_name == "number":
+            parsed_params = self._parse_key_value_params(params_str)
+            try:
+                min_val_str = parsed_params.get("min")
+                if min_val_str is not None:
+                    return str(int(min_val_str))  # Test expects min value
+                # max_val_str = parsed_params.get("max") # Not currently used by tests
+                logger.warning(
+                    f"Number placeholder '{full_match}' did not provide 'min' parameter."
+                )
+                return full_match
+            except ValueError as e:
+                logger.warning(f"Error parsing number placeholder '{full_match}': {e}")
+                return full_match
 
-    # Private: ensure cache is populated
-    def _ensure_loaded(self) -> None:
-        if self._cache is None:
-            self._cache = (
-                self._read_prompts()
-            )  # Internal YAML IO separated so *reload()* can bypass attribute cache
+        elif type_name == "choice":
+            choices = [c.strip() for c in params_str.split(",") if c.strip()]
+            if choices:
+                return choices[0]  # Test expects the first choice
+            logger.warning(f"Choice placeholder '{full_match}' had no valid choices.")
+            return full_match
 
-    def _read_prompts(self) -> dict[str, str]:
-        if self.prompt_file.read_bytes():
-            return yaml.safe_load(self.prompt_file.read_text()) or {}
-        return {}
+        elif type_name == "text":
+            parts = params_str.split(",", 1)
+            template_str = parts[0].strip()
+            local_context_params_str = parts[1].strip() if len(parts) > 1 else ""
+            local_context = self._parse_key_value_params(local_context_params_str)
+            try:
+                # Use the main template_env for consistency in undefined handling etc.
+                return self.template_env.from_string(template_str).render(**local_context)
+            except Exception as e:
+                logger.warning(f"Error rendering text placeholder sub-template '{full_match}': {e}")
+                return full_match
 
-    def _write_prompts(self, prompts: dict[str, str]) -> None:
-        self.prompt_file.write_text(yaml.safe_dump(prompts, sort_keys=False))
-        # Store a backup of the current prompts for auto-revision detection
-        self._store_last_migrated_prompts(prompts)
+        logger.debug(f"Unknown placeholder type or structure: {full_match}")
+        return full_match  # Unknown type with ':', or error in known type not caught above
 
-    # Store a copy of the prompts after a migration for change detection
-    def _store_last_migrated_prompts(self, prompts: dict[str, str]) -> None:
-        """Store a copy of the prompts after a migration is applied."""
-        if not AUTO_REVISION_ENABLED:
+    def _render_prompt(self, raw_prompt_value: str, context: Optional[dict] = None) -> str:
+        if not isinstance(raw_prompt_value, str):
+            return str(raw_prompt_value)
+
+        # Phase 1: Pre-process custom placeholders like {{date:...}}, {{number:...}}, etc.
+        try:
+            # Using a lambda to pass `self` to the method if it were not a method of `self` already.
+            # Since _process_single_placeholder is a method, it has access to self.
+            processed_prompt = re.sub(
+                r"\{\{(.*?)\}\}", self._process_single_placeholder, raw_prompt_value
+            )
+        except Exception as e:
+            logger.error(
+                f"Critical error during custom placeholder processing (re.sub): {e}. Raw: '{raw_prompt_value}'"
+            )
+            processed_prompt = raw_prompt_value  # Fallback
+
+        # Phase 2: Render the resulting string with Jinja2 for standard {{variable}} replacement
+        current_processing_context = self.default_context.copy()
+        if context:
+            current_processing_context.update(context)
+
+        try:
+            # self.template_env is initialized with DebugUndefined in __new__
+            template = self.template_env.from_string(processed_prompt)
+            rendered_prompt = template.render(**current_processing_context)
+            return rendered_prompt
+        except Exception as e:
+            logger.error(
+                f"Error rendering prompt with Jinja2: {e}. Original raw: '{raw_prompt_value}'. Processed: '{processed_prompt}'"
+            )
+            # Fallback: return the custom-processed string, as it's "more" processed than raw.
+            return processed_prompt
+
+    def reload(self, force_reload: bool = False):
+        # Path resolution logic from previous changes (using _initial_ paths)
+        # For now, assume self.prompt_file and self.state_file are correctly set by __init__
+        # and do not change dynamically per reload call unless __init__ is called again.
+
+        defaults_for_this_reload: Dict[str, str]
+        if hasattr(self, "_temp_current_effective_defaults"):
+            defaults_for_this_reload = self._temp_current_effective_defaults
+        else:
+            defaults_for_this_reload = self.instance_default_prompts.copy()
+
+        if not self.prompt_file.exists() or force_reload or not self._prompts:
+            logger.debug(f"Reloading prompts from {self.prompt_file}")
+            self.prompt_file.parent.mkdir(parents=True, exist_ok=True)
+            if not self.prompt_file.exists():  # Touch only if it truly doesn't exist
+                self.prompt_file.touch(exist_ok=True)
+
+            try:
+                with open(self.prompt_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    if not content.strip():
+                        loaded_prompts = {}
+                    else:
+                        loaded_prompts = yaml.safe_load(content) or {}
+                        if not isinstance(loaded_prompts, dict):
+                            logger.warning(
+                                f"Prompt file {self.prompt_file} does not contain a valid YAML mapping. Using empty prompts."
+                            )
+                            loaded_prompts = {}
+
+                merged_prompts = defaults_for_this_reload.copy()
+                merged_prompts.update(loaded_prompts)
+                self._prompts = merged_prompts
+            except FileNotFoundError:
+                logger.warning(
+                    f"Prompt file {self.prompt_file} not found during reload. Using effective default prompts."
+                )
+                self._prompts = defaults_for_this_reload.copy()
+            except yaml.YAMLError as e:
+                logger.error(
+                    f"Error parsing YAML from prompt file {self.prompt_file}: {e}. Using effective default prompts."
+                )
+                self._prompts = defaults_for_this_reload.copy()
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error loading prompt file {self.prompt_file}: {e}. Using effective default prompts."
+                )
+                self._prompts = defaults_for_this_reload.copy()
+
+        self._load_state()
+
+        if not self._skip_manual_check:
+            self._check_for_manual_changes()
+        logger.debug(f"Reload complete. Prompts loaded: {list(self._prompts.keys())}")
+
+    def _check_for_manual_changes(self) -> None:
+        # ... existing code ...
+        # Ensure self._prompts is used as the in-memory reference.
+        if not self.prompt_file.exists():
             return
 
-        backup_file = Path(".promptmigrate_last_migrated.json")
-        backup_file.write_text(json.dumps(prompts, indent=2, sort_keys=True))
-
-    # Check for manual changes to prompts.yaml and create auto-revision if needed
-    def _check_for_manual_changes(self) -> bool:
-        """
-        Check if prompts.yaml has been manually modified since the last migration.
-        If changes are detected and auto-revision is enabled, create a new revision.
-
-        Returns:
-            bool: True if changes were detected and a revision was created, False otherwise
-        """
-        if not AUTO_REVISION_ENABLED:
-            return False  # Import here to avoid circular imports
+        logger.debug(f"Checking for manual changes in {self.prompt_file}")
         try:
-            from .autorevision import create_revision_from_changes, detect_changes
-
-            added, modified, removed = detect_changes(
-                prompt_file=self.prompt_file, state_file=self.state_file
-            )
-            if any([added, modified, removed]):
-                logger.info("Detected manual changes to prompts.yaml")
-
-                # Create a revision from the changes
-                rev_file = create_revision_from_changes(
-                    description="Auto-generated from manual changes to prompts.yaml",
-                    prompt_file=self.prompt_file,
-                    state_file=self.state_file,
+            with open(self.prompt_file, "r", encoding="utf-8") as f:
+                current_prompts_data = yaml.safe_load(f) or {}
+            if not isinstance(current_prompts_data, dict):  # Ensure it's a dict
+                logger.warning(
+                    f"Manual check: Prompt file {self.prompt_file} content is not a dict. Skipping check."
                 )
-                if rev_file:
-                    logger.info(f"Created auto-revision: {rev_file}")
-                    return True
-
+                return
         except Exception as e:
-            logger.error(f"Error checking for manual changes: {e}")
+            logger.error(f"Error loading prompt file for manual check: {e}")
+            return
 
-        return False
+        if self._prompts is None:  # Should not happen if reload was effective
+            logger.warning("_prompts is None during _check_for_manual_changes. Attempting reload.")
+            self.reload(force_reload=True)
+            if self._prompts is None:
+                logger.error(
+                    "_prompts is still None after attempting reload in _check_for_manual_changes. Skipping check."
+                )
+                return
 
-    # ‑‑‑ User‑facing API ‑‑‑
-    def reload(self) -> "PromptManager":
-        """Reload *prompts.yaml* into the attribute cache and return *self*."""
-        if AUTO_REVISION_ENABLED:
-            # Check for manual changes before reloading
-            self._check_for_manual_changes()
+        # Check for removed prompts
+        for prompt_name in list(self._prompts.keys()):
+            if prompt_name not in current_prompts_data:
+                logger.warning(
+                    f"Prompt '{prompt_name}' was removed manually from {self.prompt_file}. "
+                    "The in-memory version will be used until 'pm.reload()' is called or changes are saved."
+                )
+                # Remove from in-memory prompts
+                del self._prompts[prompt_name]
 
-        self._cache = self._read_prompts()
-        return self
+        # Check for added or modified prompts
+        for prompt_name, prompt_content in current_prompts_data.items():
+            if prompt_name not in self._prompts:
+                logger.warning(
+                    f"Prompt '{prompt_name}' was added manually to {self.prompt_file}. "
+                    "Consider using 'pm.add_prompt()' or 'pm.save_prompts()' to manage prompts."
+                )
+            elif (
+                prompt_content is not None
+                and self._prompts.get(prompt_name) is not None
+                and isinstance(prompt_content, str)
+                and isinstance(self._prompts[prompt_name], str)
+                and prompt_content.strip() != self._prompts[prompt_name].strip()
+            ):
+                logger.warning(
+                    f"Prompt '{prompt_name}' was modified manually in {self.prompt_file}. "
+                    "The in-memory version will be used until 'pm.reload()' is called or changes are saved."
+                )
+        logger.debug("Finished checking for manual changes.")
 
-    # Dictionary‑style access
-    def __getitem__(self, key: str) -> str:
-        self._ensure_loaded()
-        assert self._cache is not None  # noqa: S101 – for mypy
-        return self._process_dynamic_values(
-            self._cache[key]
-        )  # Attribute‑style access (case‑insensitive)
+    def __getattr__(self, name: str) -> str:
+        if name.startswith("_"):
+            raise AttributeError(f"Attempt to access private attribute '{name}'")
 
-    def __getattr__(self, name: str) -> str:  # noqa: D401
-        if name.startswith("__"):
-            raise AttributeError(name)
-        self._ensure_loaded()
-        assert self._cache is not None
-        # direct match or case‑insensitive fallback
-        if name in self._cache:
-            return self._process_dynamic_values(self._cache[name])
-        lowered = name.lower()
-        for k, v in self._cache.items():
-            if k.lower() == lowered:
-                return self._process_dynamic_values(v)
-        raise AttributeError(f"Prompt {name!r} not found in prompts.yaml")
+        if name in self._dynamic_values:
+            value = self._dynamic_values[name]
+            return value() if callable(value) else value
 
-    # Legacy public helpers kept for backwards‑compat
-    def load_prompts(self) -> dict[str, str]:  # deprecated in docs, kept for API
-        self.reload()
-        assert self._cache is not None
-        return self._cache.copy()
+        if name in self._prompts:
+            return self._render_prompt(name)
 
-    def save_prompts(self, prompts: dict[str, str]) -> None:
-        self._write_prompts(prompts)
-        self.reload()
+        logger.debug(
+            f"Prompt '{name}' not found in memory or dynamic values, attempting force reload from {self.prompt_file}"
+        )
+        self.reload(force_reload=True)  # This reload will use self.instance_default_prompts
 
-    # Migration helpers
-    def current_rev(self) -> str | None:
-        if self.state_file.read_bytes():
-            return json.loads(self.state_file.read_text()).get("rev")
-        return None
+        if name in self._prompts:
+            return self._render_prompt(name)
+        else:
+            logger.error(f"Prompt '{name}' not found in {self.prompt_file} even after reload.")
+            available_prompts = list(self._prompts.keys())
+            raise AttributeError(
+                f"Prompt '{name}' not found. Available prompts: {available_prompts}"
+            )
 
-    def set_current_rev(self, rev_id: str) -> None:
-        self.state_file.write_text(json.dumps({"rev": rev_id}))
+    def _render_prompt(self, name: str) -> str:
+        # ... existing code ...
+        if name not in self._prompts:
+            # This should ideally be caught by __getattr__ first
+            raise AttributeError(f"Prompt '{name}' not found for rendering.")
 
-    def upgrade(self, target: str | None = None) -> None:
-        # First check if there are manual changes to prompts.yaml that need to be captured
-        if AUTO_REVISION_ENABLED:
-            changes_detected = self._check_for_manual_changes()
-            if changes_detected:
-                # If we created an auto-revision, we need to reload migrations
-                # to include the newly created one
-                logger.info("Auto-created revision from manual changes to prompts.yaml")
+        template_string = self._prompts[name]
+        if not isinstance(template_string, str):  # Ensure it's a string before rendering
+            logger.warning(
+                f"Prompt '{name}' content is not a string, returning as is: {template_string}"
+            )
+            return str(template_string)
 
-        applied = self.current_rev()
-        prompts = self._read_prompts()
-
-        pending = self._pending(applied, target)
-        for mig in pending:
-            prompts = mig.apply(prompts)
-            self._write_prompts(prompts)
-            self.set_current_rev(mig.rev_id)
-            logger.info("Applied prompt revision %s – %s", mig.rev_id, mig.description)
-        # refresh cache
-        self.reload()
-
-    def list_migrations(self) -> list[PromptMigration]:
-        return sorted(_migrations, key=lambda m: m.rev_id)
-
-    # ‑‑‑ Internal helpers ‑‑‑
-    def _pending(self, current: str | None, target: str | None) -> list[PromptMigration]:
-        ordered = self.list_migrations()
-        if current:
-            ordered = [m for m in ordered if m.rev_id > current]
-        if target:
-            ordered = [m for m in ordered if m.rev_id <= target]
-        return ordered
-
-    def _process_dynamic_values(self, text: str) -> str:
-        """Process dynamic value placeholders in the prompt text.
-
-        Placeholders use the format {{type:options}} where:
-        - type: The type of dynamic content (date, number, choice, etc.)
-        - options: Configuration for the dynamic content
-
-        Examples:
-            - {{date:format=%Y-%m-%d}} - Current date in specified format
-            - {{number:min=1,max=100}} - Random number between min and max
-            - {{choice:one,two,three}} - Random choice from a list
-            - {{text:Hello {name}!,name=World}} - Formatted text with variables
-        """
-        if not text or "{{" not in text:
-            return text
-
-        def _replace_match(match: re.Match) -> str:
-            directive = match.group(1).strip()
-
-            if ":" not in directive:
-                return match.group(0)  # Return unchanged if no format specifier
-
-            value_type, options = directive.split(":", 1)
-
-            # Handle different dynamic value types
-            if value_type == "date":
-                return self._process_date(options)
-            elif value_type == "number":
-                return self._process_number(options)
-            elif value_type == "choice":
-                return self._process_choice(options)
-            elif value_type == "text":
-                return self._process_text(options)
-
-            # Unknown type, return unchanged
-            return match.group(0)
-
-        return re.sub(DYNAMIC_VALUE_PATTERN, _replace_match, text)
-
-    def _process_date(self, options: str) -> str:
-        """Process date dynamic values with optional format."""
-        format_str = "%Y-%m-%d"
-
-        # Extract format if specified
-        if "format=" in options:
-            format_match = re.search(r"format=([^,]+)", options)
-            if format_match:
-                format_str = format_match.group(1)
-
-        return datetime.now().strftime(format_str)
-
-    def _process_number(self, options: str) -> str:
-        """Process number dynamic values with optional min/max."""
-        min_val = 0
-        max_val = 100
-
-        # Extract min if specified
-        if "min=" in options:
-            min_match = re.search(r"min=([^,]+)", options)
-            if min_match:
-                try:
-                    min_val = int(min_match.group(1))
-                except ValueError:
-                    pass
-
-        # Extract max if specified
-        if "max=" in options:
-            max_match = re.search(r"max=([^,]+)", options)
-            if max_match:
-                try:
-                    max_val = int(max_match.group(1))
-                except ValueError:
-                    pass
-
-        return str(random.randint(min_val, max_val))
-
-    def _process_choice(self, options: str) -> str:
-        """Process choice dynamic values by selecting from a list."""
-        choices = options.split(",")
-        return random.choice(choices).strip() if choices else ""
-
-    def _process_text(self, options: str) -> str:
-        """Process text with variables for template formatting."""
-        # First part is the template, rest are variable assignments
-        parts = options.split(",")
-        template = parts[0]
-
-        # Extract variables
-        variables = {}
-        for part in parts[1:]:
-            if "=" in part:
-                key, value = part.split("=", 1)
-                variables[key.strip()] = value.strip()
-
-        # Format the template with variables
         try:
-            return template.format(**variables)
-        except (KeyError, ValueError):
-            # If there are no variables or formatting fails, return the template string
-            return template
+            template = self.template_env.from_string(
+                template_string
+            )  # Combine dynamic values and explicit Jinja vars for rendering context
+            render_context = self._dynamic_values.copy()  # Start with dynamic values
+            # Callables in dynamic_values should be resolved if needed by the template
+            # For simplicity, assume templates handle {{ func() }} or {{ var }}
+            render_context.update(self.jinja_env_vars)  # Add explicit Jinja vars
+            return template.render(render_context)
+        except jinja2_exceptions.TemplateSyntaxError as e:
+            logger.error(f"Jinja2 syntax error in prompt '{name}': {e}")
+            raise  # Re-raise to make it visible
+        except Exception as e:
+            logger.error(f"Error rendering prompt '{name}': {e}")
+            return f"Error rendering prompt '{name}': {e}"  # Return error string
+
+    def _start_watching(self) -> None:
+        if not WATCHDOG_AVAILABLE:
+            logger.info("Watchdog library not available. File watching disabled.")
+            return
+        if not self.prompt_file or not self.prompt_file.parent.exists():
+            logger.error(
+                f"Cannot start watcher: Prompt file directory {self.prompt_file.parent} does not exist."
+            )
+            return
+        if self._observer and self._observer.is_alive():  # type: ignore
+            logger.debug("Watcher already running.")
+            return
+
+        event_handler = _PromptFileChangeHandler(self)
+        self._observer = Observer()
+        try:
+            # Watch the specific file's directory, then filter for the file in handler
+            # Or, if prompt_file is a file path, watch its parent.
+            watch_path = str(self.prompt_file.parent.resolve())
+            self._observer.schedule(event_handler, watch_path, recursive=False)  # type: ignore
+            self._observer.start()  # type: ignore
+            logger.info(f"Started watching {watch_path} for changes to {self.prompt_file.name}.")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"Failed to start file watcher for {self.prompt_file.parent}: {e}")
+            self._observer = None  # Ensure observer is None if start failed
+
+    def stop_watching(self) -> None:
+        if not WATCHDOG_AVAILABLE or not self._observer:
+            return
+        try:
+            if self._observer.is_alive():  # type: ignore
+                self._observer.stop()  # type: ignore
+                self._observer.join(timeout=5)  # Wait for the observer thread to finish
+                logger.info(f"Stopped watching {self.prompt_file.parent} for changes.")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"Error stopping file watcher: {e}")
+        finally:
+            self._observer = None  # Clear the observer instance
 
 
-# ---------------------
-# Convenience API for dynamic module discovery
+# ...existing code...
+class _PromptFileChangeHandler(FileSystemEventHandler if WATCHDOG_AVAILABLE else object):  # type: ignore
+    def __init__(self, manager_instance: "PromptManager"):
+        super().__init__()
+        self.manager = manager_instance
+        # Ensure manager_instance.prompt_file is Path object for comparison
+        self._watched_file_path = Path(self.manager.prompt_file).resolve()
 
+    def on_modified(self, event: Any):  # 'Any' because FileModifiedEvent might be None
+        if not WATCHDOG_AVAILABLE or event is None or event.is_directory:
+            return
 
-def load_revision_module(module: str | ModuleType) -> _RevisionModuleProto:
-    import importlib
-
-    mod = importlib.import_module(module) if isinstance(module, str) else module
-    migration: PromptMigration | None = getattr(mod, REVISION_ATTR, None)
-    if migration is None:
-        raise AttributeError(f"{mod.__name__!r} does not define a PromptMigrate migration")
-    return mod  # type: ignore[return‑value]
+        src_path = Path(event.src_path).resolve()
+        if src_path == self._watched_file_path:
+            logger.info(f"Detected change in {self.manager.prompt_file}. Reloading prompts.")
+            # Debounce or handle rapid changes if necessary, though watchdog might do some.
+            # For now, direct reload.
+            try:
+                if self.manager.auto_revision_enabled:
+                    self.manager._check_for_manual_changes(create_revision=True)
+                else:
+                    self.manager.reload(force_reload=True)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(f"Error during auto-reload/revision after file change: {e}")

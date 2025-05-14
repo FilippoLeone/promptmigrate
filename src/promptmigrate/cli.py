@@ -11,7 +11,7 @@ import click
 
 from . import __version__, logger
 from .autorevision import create_revision_from_changes, detect_changes
-from .manager import PromptManager, load_revision_module
+from .manager import PromptManager
 
 _pkg_name = "promptmigrate_revisions"
 
@@ -41,7 +41,7 @@ def upgrade_cmd(target: Optional[str], pkg: str) -> None:
         raise click.ClickException(f"Revisions package {pkg!r} not found") from exc
 
     for _, name, _ in pkgutil.walk_packages(pkg_mod.__path__, f"{pkg_mod.__name__}."):
-        load_revision_module(name)
+        importlib.import_module(name)
 
     mgr = PromptManager()
     mgr.upgrade(target)

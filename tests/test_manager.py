@@ -136,8 +136,19 @@ def test_reload_functionality(tmp_path):
 
 def test_singleton():
     """Test the singleton instance works."""
-    # This test requires temporarily changing the working directory
     original_dir = os.getcwd()
+
+    # Preserve the original _auto_watch state of the singleton pm
+    # and ensure it's restored regardless of test outcome.
+    original_pm_auto_watch = None
+    # _auto_watch should exist on an initialized PromptManager instance.
+    # Direct access is used here as pm is a known global instance.
+    try:
+        original_pm_auto_watch = pm._auto_watch
+        pm._auto_watch = False  # Disable file watcher for this test
+    except AttributeError:
+        # Handle case where _auto_watch might not exist, though unlikely for initialized pm
+        pass
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -147,11 +158,21 @@ def test_singleton():
             with open("prompts.yaml", "w") as f:
                 yaml.safe_dump({"TEST_SINGLETON": "This is the singleton test"}, f)
 
-            # Force reload of the singleton
+            # Force reload of the singleton.
+            # With pm._auto_watch = False, this reload should not start a file watcher.
             pm.reload()
 
             # Test attribute access works
             assert pm.TEST_SINGLETON == "This is the singleton test"
+
     finally:
-        # Restore original directory
         os.chdir(original_dir)
+        # Restore the original _auto_watch state if it was captured
+        if original_pm_auto_watch is not None:
+            try:
+                pm._auto_watch = original_pm_auto_watch
+            except AttributeError:
+                pass  # Should not happen if captured successfully
+        # Reload pm to reflect the original CWD and its _auto_watch state
+        # This ensures pm is in a consistent state for other tests.
+        pm.reload()
